@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Todo Today</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .full {
+            width: 100%;
+        }
+
+        #todo-container {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .todo {
+            background-color: #f1f1f1;
+            box-sizing: border-box;
+            padding: 1em;
+            margin: 0.5em;
+        }
+
+        .todo h1 {
+            margin: 0px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="full">
+        <ul id="todo-container">
+            <!-- Todos go here. -->
+        </ul>
+        <div id="todo-controls-container">
+            <input type="text" id="title-input">
+            <input type="text" id="description-input">
+            <button id="create-todo-button">Create Todo</button>
+            <button id="delete-all-todos-button">Delete All Todos</button>
+            <button id="reset-all-todos-button">Reset All Todos</button>
+        </div>
+    </div>
+
+    <script>
+
+        /*
+            TODO:
+            * Sort todos
+            * Dismiss Todo using swipe
+            * Date functions of Todos
+            * Todo colors
+            * Settings (char select)
+        */
+
+        document.addEventListener("DOMContentLoaded", (event) => {
+            let createTodoButton = document.getElementById("create-todo-button");
+
+            createTodoButton.addEventListener("click", (event) => {
+                let titleInput = document.getElementById("title-input");
+                let descriptionInput = document.getElementById("description-input");
+
+                let title = titleInput.value;
+                let description = descriptionInput.value;
+
+                todoManager.createTodo(title, description);
+
+                titleInput.value = "";
+                descriptionInput.value = "";
+
+                todoManager.loadTodos(renderTodo);
+            }, false);
+
+            let deleteAllTodosButton = document.getElementById("delete-all-todos-button");
+
+            deleteAllTodosButton.addEventListener("click", () => {
+                while (document.getElementsByClassName("todo").length > 0) {
+                    document.getElementsByClassName("todo")[0].remove();
+                }
+                todoManager.deleteAllTodos();
+            }, false);
+
+            let resetAllTodosButton = document.getElementById("reset-all-todos-button");
+
+            resetAllTodosButton.addEventListener("click", () => {
+                todoManager.resetAllTodos();
+                todoManager.loadTodos(renderTodo);
+            }, false);
+
+        }, false);
+
+        function renderTodo(todo) {
+
+            if (todo.complete == false) {
+
+
+                let todoContainer = document.getElementById("todo-container");
+
+                let todoElement = document.createElement("LI");
+                todoElement.className = "todo";
+                todoElement.id = "todo-" + todo.title;
+
+                let title = document.createElement("H1");
+                title.innerText = todo.title;
+
+                let description = document.createElement("P");
+                description.innerText = todo.description;
+
+                let deleteTodoButton = document.createElement("BUTTON");
+                deleteTodoButton.innerText = "X";
+
+                let dismissTodoButton = document.createElement("BUTTON");
+                dismissTodoButton.innerText = "-";
+
+                deleteTodoButton.addEventListener("click", () => {
+                    todoManager.deleteTodo(todo.title);
+                    document.getElementById(todoElement.id).remove();
+                }, false);
+
+                dismissTodoButton.addEventListener("click", () => {
+                    todoManager.dismissTodo(todo.title);
+                    document.getElementById(todoElement.id).remove();
+                }, false);
+
+                todoElement.appendChild(title);
+                todoElement.appendChild(description);
+                todoElement.appendChild(deleteTodoButton);
+                todoElement.appendChild(dismissTodoButton);
+                todoContainer.appendChild(todoElement);
+            }
+        }
+
+        function Todo(title, description) {
+            this.title = title;
+            this.description = description;
+            this.complete = false;
+
+            // Maybe not needed:
+            this.update = (property, value) => {
+                this[property] = value;
+            };
+        }
+
+        let todoManager = {
+            createTodo: (title, description) => {
+                localStorage.setItem(title, JSON.stringify(new Todo(title, description)));
+            },
+
+            deleteTodo: (title) => {
+                localStorage.removeItem(title);
+            },
+            // Write todo upkeep. set Todo.complete: false
+            dismissTodo: (title) => {
+                let todo = JSON.parse(localStorage.getItem(title));
+                todo.complete = true;
+                localStorage.setItem(title, JSON.stringify(todo));
+            },
+
+            loadedTodos: {},
+
+            // Takes callback function to process each todo's data.
+            // Callback: (todo) => {} 
+            // Let the callback filter the todos
+            loadTodos: (cb) => {
+                if (localStorage && localStorage.length > 0 && typeof cb == "function") {
+                    for (let item in localStorage) {
+                        if (localStorage.getItem(item)) {
+                            let todo = JSON.parse(localStorage.getItem(item));
+
+                            if (!todoManager.loadedTodos[todo.title]) {
+                                cb(todo);
+                                todoManager.loadedTodos[todo.title] = todo;
+                            }
+                        }
+                    }
+                } else if (localStorage.length < 1) {
+                    alert("Local Storage is empty.");
+                } else if (typeof cb != "function") {
+                    alert("Callback is not a function.");
+                } else {
+                    alert("Local Storage does not exist!");
+                }
+            },
+
+            // JANK AF
+            resetAllTodos: () => {
+                if (localStorage && localStorage.length > 0) {
+                    for (let item in localStorage) {
+                        if (localStorage.getItem(item)) {
+                            let todo = JSON.parse(localStorage.getItem(item));
+
+                            if (todoManager.loadedTodos[todo.title]) {
+                                if (todo.complete == true) {
+                                    delete todoManager.loadedTodos[todo.title];
+                                }
+                            }
+
+                            todo.complete = false;
+                            localStorage.setItem(todo.title, JSON.stringify(todo));
+                        }
+                    }
+                } else if (localStorage.length < 1) {
+                    alert("Local Storage is empty.");
+                } else if (typeof cb != "function") {
+                    alert("Callback is not a function.");
+                } else {
+                    alert("Local Storage does not exist!");
+                }
+            },
+
+            deleteAllTodos: () => {
+                localStorage.clear();
+            }
+        }
+
+        // Check if new day.
+        /*if(){
+
+        }*/
+        //let myTodo = new Todo("Test", "Fafds")
+        //myTodo.update("title", "This is new");
+        //console.log("UPDATE TODO:", );
+        console.log("localStorage:", localStorage);
+        todoManager.loadTodos(renderTodo);
+    </script>
+</body>
+
+</html>
