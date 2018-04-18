@@ -25,10 +25,49 @@
             box-sizing: border-box;
             padding: 1em;
             margin: 0.5em;
+            border-radius: 4px;
         }
 
         .todo h1 {
             margin: 0px;
+        }
+
+        #todo-controls-container {
+            /*position: fixed;
+            bottom: 0.5em;
+            right: 0.5em;*/
+            display: block;
+            margin: 0.5em;
+            background-color: turquoise;
+            box-sizing: border-box;
+            padding: 0.5em;
+            border-radius: 4px;
+        }
+
+        #todo-controls-container > div {
+            display: block;
+        }
+
+        #controls-toggler {
+            position: fixed;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            bottom: 2em;
+            right: 1em;
+            display: block;
+            border: none;
+            background-color: turquoise;
+            z-index: 1;
+            cursor: pointer;
+            color: white;
+        }
+
+        /*TODO: Remove button depression animation.*/
+
+        #controls-toggler:active {
+            background-color: red;
+            border: none;
         }
     </style>
 </head>
@@ -39,23 +78,32 @@
             <!-- Todos go here. -->
         </ul>
         <div id="todo-controls-container">
-            <input type="text" id="title-input">
-            <input type="text" id="description-input">
-            <button id="create-todo-button">Create Todo</button>
-            <button id="delete-all-todos-button">Delete All Todos</button>
-            <button id="reset-all-todos-button">Reset All Todos</button>
+            <div>
+                <input type="text" id="title-input">
+                <input type="text" id="description-input">
+            </div>
+            <div>
+                <button id="create-todo-button">Create Todo</button>
+                <button id="delete-all-todos-button">Delete All Todos</button>
+                <button id="reset-all-todos-button">Reset All Todos</button>
+            </div>
         </div>
+        <button id="controls-toggler">+</button>
+        <!-- Actually get this to work. -->
     </div>
 
     <script>
 
         /*
             TODO:
-            * Sort todos
+            * Sort todos (use flex and order?)
+            * Edit todos
             * Dismiss Todo using swipe
             * Date functions of Todos
+                * compare not just day, but also month and year
             * Todo colors
             * Settings (char select)
+            * Score system
         */
 
         document.addEventListener("DOMContentLoaded", (event) => {
@@ -97,7 +145,6 @@
         function renderTodo(todo) {
 
             if (todo.complete == false) {
-
 
                 let todoContainer = document.getElementById("todo-container");
 
@@ -146,6 +193,20 @@
             };
         }
 
+        // An index of non-to-do items to be stored in local storage.
+        let reservedItems = {
+            "last-access-date": /*new Date().getDate(),*/ true,
+            "getLength": () => {
+                let length = 0;
+                for(item in reservedItems){
+                    if(reservedItems.hasOwnProperty(item) && item != "getLength"){
+                        length++;
+                    }
+                }
+                return length;
+            }
+        }
+
         let todoManager = {
             createTodo: (title, description) => {
                 localStorage.setItem(title, JSON.stringify(new Todo(title, description)));
@@ -167,9 +228,9 @@
             // Callback: (todo) => {} 
             // Let the callback filter the todos
             loadTodos: (cb) => {
-                if (localStorage && localStorage.length > 0 && typeof cb == "function") {
+                if (localStorage && localStorage.length > reservedItems.getLength() && typeof cb == "function") {
                     for (let item in localStorage) {
-                        if (localStorage.getItem(item)) {
+                        if (localStorage.getItem(item) && !reservedItems[item]) {
                             let todo = JSON.parse(localStorage.getItem(item));
 
                             if (!todoManager.loadedTodos[todo.title]) {
@@ -178,7 +239,7 @@
                             }
                         }
                     }
-                } else if (localStorage.length < 1) {
+                } else if (localStorage.length <= reservedItems.getLength()) {
                     alert("Local Storage is empty.");
                 } else if (typeof cb != "function") {
                     alert("Callback is not a function.");
@@ -189,9 +250,9 @@
 
             // JANK AF
             resetAllTodos: () => {
-                if (localStorage && localStorage.length > 0) {
+                if (localStorage && localStorage.length > reservedItems.getLength()) {
                     for (let item in localStorage) {
-                        if (localStorage.getItem(item)) {
+                        if (localStorage.getItem(item) && !reservedItems[item]) {
                             let todo = JSON.parse(localStorage.getItem(item));
 
                             if (todoManager.loadedTodos[todo.title]) {
@@ -204,7 +265,7 @@
                             localStorage.setItem(todo.title, JSON.stringify(todo));
                         }
                     }
-                } else if (localStorage.length < 1) {
+                } else if (localStorage.length <= reservedItems.getLength()) {
                     alert("Local Storage is empty.");
                 } else if (typeof cb != "function") {
                     alert("Callback is not a function.");
@@ -213,18 +274,53 @@
                 }
             },
 
+            // TODO: Revamp to avoid deleting reserved items.
             deleteAllTodos: () => {
-                localStorage.clear();
+                if (localStorage && localStorage.length > reservedItems.getLength()) {
+                    for (let item in localStorage) {
+                        if (localStorage.getItem(item) && !reservedItems[item]) {
+                            localStorage.removeItem(item);
+                        }
+                    }
+                } else if (localStorage.length <= reservedItems.getLength()) {
+                    alert("Local Storage is empty.");
+                } else if (typeof cb != "function") {
+                    alert("Callback is not a function.");
+                } else {
+                    alert("Local Storage does not exist!");
+                }
             }
         }
 
-        // Check if new day.
-        /*if(){
+        let lastAccessDate = localStorage.getItem("last-access-date");
+        let currentDate;
 
-        }*/
-        //let myTodo = new Todo("Test", "Fafds")
-        //myTodo.update("title", "This is new");
-        //console.log("UPDATE TODO:", );
+        if (!lastAccessDate) {
+            console.log("No last-access-date.");
+            localStorage.setItem("last-access-date", new Date().toDateString());
+            lastAccessDate = localStorage.getItem("last-access-date");
+            console.log("Set last-access-date.");
+            console.log("Last access date:", localStorage.getItem("last-access-date"));
+        }
+
+        setInterval(() => {
+            currentDate = new Date();
+
+            if (lastAccessDate != currentDate.toDateString()) {
+
+                console.log("A new day has dawned.");
+
+                lastAccessDate = currentDate.toDateString();
+                localStorage.setItem("last-access-date", currentDate.toDateString());
+                console.log("Updated last-access-date.");
+
+                todoManager.resetAllTodos();
+                console.log("Reset todos.");
+                todoManager.loadTodos(renderTodo);
+                console.log("Todos reloaded.");
+            }
+        }, 1000);
+
         console.log("localStorage:", localStorage);
         todoManager.loadTodos(renderTodo);
     </script>
